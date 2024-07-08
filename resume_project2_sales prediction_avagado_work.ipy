@@ -1,0 +1,142 @@
+
+#importing libraries
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+sns.set()
+import warnings
+warnings.filterwarnings('ignore')
+
+
+
+#importing the dataset
+data = pd.read_csv(r"C:\Users\sandh\OneDrive\Desktop\python\resume project\RESUME PROJECT -- PRICE PREDICTION_june 24th\avocado.csv",index_col=0)
+data
+# Check the data
+data.info()
+
+# checking for any missing or null values 
+data.isnull().sum() 
+
+# Dropping irrelevant columns 
+data.head(3)
+data.columns
+
+
+# EDA Analysis
+# Univariant Analysis
+# Analyzing the dependent variable y=Average price from dataset
+data['AveragePrice']
+data['AveragePrice'].mean()
+# Avearge price of each Avagado from the dataset is 1.40 
+
+
+# frequency distribution of average price dependent variable  follows Gaussian or Normal distribution 
+
+sns.displot(data['AveragePrice'])
+
+
+# Bivariant Analysis
+# compare and plot the graphs  in Which year Avearge price of a fruit is more .comparing  two variables  
+sns.countplot(x='type',data=data,hue='year')
+
+# Graph shows that from year 2015 to 2017 graph follows uniform sale in both type (conventional and organic)but sudden drop  in the year  2018 
+data.year.value_counts()
+
+#compare and plot the graphs between Average price and the year of sale
+sns.countplot(x='year',data=data,hue='AveragePrice')
+
+# Boxplot will help to find any outliers in the data 
+sns.boxplot(y="type", x="AveragePrice", data=data)  
+# Organic type price is higher than conventional type 
+
+data['year']
+data.year=data.year.apply(str)
+sns.boxenplot(x="year", y="AveragePrice", data=data)
+data['Date']
+
+
+# Analysis of categorical variables
+# Type attribute mapped as conventional':0,'organic':1 using dictionary 
+data['type'].nunique()
+data['type'].unique()  
+
+data['type']=data['type'].map({'conventional':0,'organic':1})
+data['type'].head(3)
+
+# # covert and extraxt the month from the 'Date' attribute to see monthly sales of  Avagado with variable "Type"
+data.Date = data.Date.apply(pd.to_datetime)
+data['Month']=data['Date'].apply(lambda x:x.month)
+data.drop('Date',axis=1,inplace=True)
+data.Month = data.Month.map({1:'JAN',2:'FEB',3:'MARCH',4:'APRIL',5:'MAY',6:'JUNE',7:'JULY',8:'AUG',9:'SEPT',10:'OCT',11:'NOV',12:'DEC'})
+data['Month'].head(3)
+
+
+data.columns
+# Visualize using graph  Monthwise Distribution sales of Avagado
+plt.figure(figsize=(9,5))
+#sns.countplot(x='AveragePrice',data=data,hue='Month')
+plt.title('Monthwise Distribution of Sales',fontdict={'fontsize':25})
+sns.displot(data['Month'])
+plt.show()
+# Graph implies sale of avagado 
+
+data.groupby('region')['AveragePrice'].value_counts()
+sns.lmplot(data=data,x='region',y='AveragePrice')
+# Creating dummy varaiable 
+# Training the model using ML algorithims 
+
+dummies = pd.get_dummies(data[['year','region','Month']],drop_first=True)
+dummies.shape
+
+# Seperating Dependent and independent variables 
+X = pd.concat([data[['Total Volume', '4046', '4225', '4770', 'Total Bags',
+       'Small Bags', 'Large Bags', 'XLarge Bags', 'type']],dummies],axis=1)  # independent varaiable X is stored 
+
+target = data['AveragePrice'] # dependent variable y choose as target 
+
+# Splitting data into training and test set
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(X,target,test_size=0.30,random_state=0)
+
+
+# Standardizing the data
+cols_to_std = ['Total Volume', '4046', '4225', '4770', 'Total Bags', 'Small Bags','Large Bags', 'XLarge Bags']
+from sklearn.preprocessing import StandardScaler
+scaler=StandardScaler()
+
+scaler.fit(X_train[cols_to_std])
+X_train[cols_to_std] = scaler.transform(X_train[cols_to_std])
+X_test[cols_to_std] = scaler.transform(X_test[cols_to_std])
+
+
+
+
+#importing ML models from scikit-learn
+from sklearn.linear_model import LinearRegression
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.svm import SVR
+from sklearn.neighbors import KNeighborsRegressor
+from xgboost import XGBRegressor
+from sklearn.metrics import mean_absolute_error,mean_squared_error,r2_score
+# TO perform all the above regression technique with reduced number of lines using Dictionary date type by calling each keys represent regression types 
+regressors = {
+    'Linear Regression' : LinearRegression(),
+    'Decision Tree' : DecisionTreeRegressor(),
+    'Random Forest' : RandomForestRegressor(),
+    'Support Vector Machines' : SVR(gamma=1),
+    'K-nearest Neighbors' : KNeighborsRegressor(n_neighbors=1),
+    
+}
+results=pd.DataFrame(columns=['MAE','MSE','R2-score'])
+for method,func in regressors.items():
+    model = func.fit(X_train,y_train)
+    pred = model.predict(X_test)
+    results.loc[method]= [np.round(mean_absolute_error(y_test,pred),3),
+                          np.round(mean_squared_error(y_test,pred),3),
+                          np.round(r2_score(y_test,pred),3)
+                         ]
+
+
